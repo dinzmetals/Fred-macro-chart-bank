@@ -7,7 +7,7 @@ import matplotlib.ticker as mtick
 # -----------------------------
 # CONFIG
 # -----------------------------
-API_KEY = "b2c14d246471fd55d0d03a1c451b1c0e"
+API_Key = os.getenv("FRED_API_KEY")
 
 # -----------------------------
 # CHART CONFIG
