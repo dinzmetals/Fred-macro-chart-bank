@@ -3,11 +3,12 @@ import pandas as pd
 import requests
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import os
 
 # -----------------------------
 # CONFIG
 # -----------------------------
-API_Key = os.getenv("FRED_API_KEY")
+API_KEY = os.getenv("FRED_API_KEY")
 
 # -----------------------------
 # CHART CONFIG
