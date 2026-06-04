@@ -11,25 +11,25 @@ import os
 API_KEY = os.getenv("FRED_API_KEY")
 
 # -----------------------------
-# CHART CONFIG
+# CHART CONFIG (WITH CATEGORIES)
 # -----------------------------
 CHART_CONFIG = {
 
     # ACTIVITY
-    "Industrial Production YoY": {
-        "series_id": "INDPRO",
-        "transform": "yoy",
-        "title": "US Industrial Production (YoY %)",
+    "Nonfarm Payrolls": {
+        "series_id": "PAYEMS",
+        "transform": None,
+        "title": "US Nonfarm Payrolls",
         "category": "Activity"
     },
-    "Industrial Production: Manufacturing YoY": {
-        "series_id": "IPMAN",
-        "transform": "yoy",
-        "title": "US Industrial Production Manufacturing (YoY %)",
+    "Retail Sales": {
+        "series_id": "RSAFS",
+        "transform": None,
+        "title": "US Retail Sales",
         "category": "Activity"
     },
 
-   # INFLATION
+    # INFLATION
     "US CPI YoY": {
         "series_id": "CPIAUCSL",
         "transform": "yoy",
@@ -42,21 +42,6 @@ CHART_CONFIG = {
         "title": "US Core CPI (YoY %)",
         "category": "Inflation"
     },
-
-    # LABOUR
-    "Unemployment Rate": {
-        "series_id": "UNRATE",
-        "transform": None,
-        "title": "US Unemployment Rate (%)",
-        "category": "Labour"
-    },
-    "Nonfarm Payrolls": {
-        "series_id": "PAYEMS",
-        "transform": None,
-        "title": "US Nonfarm Payrolls",
-        "category": "Labour"
-    },
-
 
     # RATES
     "Fed Funds Rate": {
@@ -89,7 +74,6 @@ def fetch_fred_series(series_id):
     data = r.json()
 
     if "observations" not in data:
-        st.error(f"API error: {data}")
         return pd.DataFrame()
 
     df = pd.DataFrame(data["observations"])
@@ -109,15 +93,11 @@ def apply_transform(df, transform):
     return df
 
 
-# -----------------------------
-# TIME FILTER
-# -----------------------------
 def filter_time(df, time_option):
     if df.empty:
         return df
 
     df = df.dropna()
-
     end_date = df["date"].max()
 
     if time_option == "1 Year":
@@ -127,145 +107,97 @@ def filter_time(df, time_option):
     else:
         return df
 
-    filtered = df[df["date"] >= start_date]
-
-    # fallback if empty
-    return filtered if not filtered.empty else df
-
+    return df[df["date"] >= start_date]
 
 # -----------------------------
 # CHART FUNCTION
 # -----------------------------
 def plot_chart(df, title):
 
-    if df.empty:
-        raise ValueError("Empty dataset")
-
     plt.rcParams["font.family"] = "Arial"
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(5, 3))  # half-width size
 
     main_color = (32/255, 32/255, 118/255)
-    fill_color = (211/255, 214/255, 255/255)
     grid_color = (0.85, 0.85, 0.85)
 
-    # line
-    ax.plot(df["date"], df["value"], color=main_color, linewidth=2.5)
+    ax.plot(df["date"], df["value"], color=main_color, linewidth=2)
 
     # remove gap
     ax.margins(x=0)
-    ax.set_xlim(df["date"].min(), df["date"].max())
+    if len(df) > 0:
+        ax.set_xlim(df["date"].min(), df["date"].max())
 
-    # yoy shading
-    if "YoY" in title:
-        ax.fill_between(
-            df["date"],
-            df["value"],
-            0,
-            where=(df["value"] < 0),
-            color=fill_color,
-            alpha=0.6
-        )
+    # title
+    ax.set_title(title, loc="left", fontsize=8, fontweight="bold")
 
     # labels
-    ax.set_title(title, loc="left", fontsize=8, fontweight="bold")
-    ax.set_xlabel("Date", fontsize=8)
-
-    if "YoY" in title:
-        ax.set_ylabel("% YoY", fontsize=8)
-    else:
-        ax.set_ylabel("Level", fontsize=8)
+    ax.set_xlabel("")
+    ax.set_ylabel("")
 
     # grid
-    ax.grid(True, linewidth=0.6, color=grid_color)
+    ax.grid(True, linewidth=0.5, color=grid_color)
 
-    # clean axes
+    # clean
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    ax.tick_params(axis="both", labelsize=8)
+    ax.tick_params(axis="both", labelsize=7)
 
-    # percentage format
-    if "YoY" in title:
+    # % formatting
+    if "YoY" in title or "%" in title:
         ax.yaxis.set_major_formatter(
             mtick.FuncFormatter(lambda x, _: f"{x:.1f}%")
         )
 
-    # last value
-    last_x = df["date"].iloc[-1]
-    last_y = df["value"].iloc[-1]
-    ax.scatter(last_x, last_y, color=main_color)
-    ax.text(last_x, last_y, f" {last_y:.1f}", fontsize=8)
-
     plt.tight_layout()
 
     return fig
-
 
 # -----------------------------
 # STREAMLIT UI
 # -----------------------------
 st.set_page_config(page_title="Chart Bank", layout="wide")
 
-st.title("📊 Internal Macro Chart Bank")
+st.title("📊 Macro Dashboard")
 
-# TIME SELECTOR
+# TIME FILTER (GLOBAL)
 time_option = st.radio(
     "Time Horizon",
     ["1 Year", "5 Years", "All"],
     horizontal=True
 )
 
-# CATEGORY FILTER
-categories = list(set(c["category"] for c in CHART_CONFIG.values()))
-selected_category = st.sidebar.selectbox("Category", ["All"] + categories)
-
-filtered_charts = {
-    name: cfg for name, cfg in CHART_CONFIG.items()
-    if selected_category == "All" or cfg["category"] == selected_category
-}
-
-selected_chart = st.sidebar.selectbox(
-    "Chart",
-    list(filtered_charts.keys())
-)
-
-config = filtered_charts[selected_chart]
+# -----------------------------
+# SORT CHARTS BY CATEGORY
+# -----------------------------
+categories = {}
+for name, config in CHART_CONFIG.items():
+    cat = config["category"]
+    if cat not in categories:
+        categories[cat] = []
+    categories[cat].append((name, config))
 
 # -----------------------------
-# LOAD DATA (THIS WAS MISSING BEFORE)
+# RENDER DASHBOARD
 # -----------------------------
-with st.spinner("Loading data..."):
-    df = fetch_fred_series(config["series_id"])
-    df = apply_transform(df, config.get("transform"))
-    df = filter_time(df, time_option)
+for category, charts in categories.items():
 
-# -----------------------------
-# DISPLAY (SAFE)
-# -----------------------------
-if df.empty:
-    st.warning("No data available for this selection")
-else:
-    try:
-        fig = plot_chart(df, config["title"])
-        st.pyplot(fig)
-    except Exception as e:
-        st.error("Chart failed")
-        st.write(e)
-        st.dataframe(df.tail(10))
+    st.markdown(f"## {category}")   # section header
+    st.markdown("---")
 
-# -----------------------------
-# DATA TABLE
-# -----------------------------
-with st.expander("Show raw data"):
-    st.dataframe(df.tail(20))
+    # 2 charts per row
+    cols = st.columns(2)
 
-# -----------------------------
-# DOWNLOAD
-# -----------------------------
-csv = df.to_csv(index=False).encode("utf-8")
-st.download_button(
-    label="Download CSV",
-    data=csv,
-    file_name=f"{selected_chart}.csv"
-)
+    for i, (name, config) in enumerate(charts):
+
+        df = fetch_fred_series(config["series_id"])
+        df = apply_transform(df, config.get("transform"))
+        df = filter_time(df, time_option)
+
+        with cols[i % 2]:
+            if df.empty:
+                st.warning(f"{name}: No data")
+            else:
+                fig = plot_chart(df, config["title"])
+                st.pyplot(fig)
