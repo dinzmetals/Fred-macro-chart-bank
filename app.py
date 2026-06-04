@@ -16,16 +16,16 @@ API_KEY = os.getenv("FRED_API_KEY")
 CHART_CONFIG = {
 
     # ACTIVITY
-    "Nonfarm Payrolls": {
-        "series_id": "PAYEMS",
-        "transform": None,
-        "title": "US Nonfarm Payrolls",
+    "US Industrial Production YoY": {
+        "series_id": "INDPRO",
+        "transform": "yoy",
+        "title": "US Industrial Production YoY",
         "category": "Activity"
     },
-    "Retail Sales": {
-        "series_id": "RSAFS",
-        "transform": None,
-        "title": "US Retail Sales",
+    "US Industrial Production: Manufacturing YoY": {
+        "series_id": "IPMAN",
+        "transform": "yoy",
+        "title": "US Industrial Production: Manufacturing YoY",
         "category": "Activity"
     },
 
